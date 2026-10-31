@@ -1,0 +1,187 @@
+{
+  "PP-D-48211A": {
+    "evidenceChecklist": [
+      {
+        "item": "Tracking number showing delivery to buyer's ZIP code",
+        "have": true
+      },
+      {
+        "item": "Proof of delivery signature",
+        "have": false
+      }
+    ],
+    "trackingNumber": "9400 1118 9922 3344 5521 07",
+    "evidenceNote": "The item was shipped via USPS Ground Advantage (tracking 9400 1118 9922 3344 5521 07) and is marked as delivered to the buyer's ZIP code 98103 on the date specified by the carrier.",
+    "buyerMessage": "Hello Dana, I am sorry to hear you haven't received your kettle. I have checked the tracking information for your order (9400 1118 9922 3344 5521 07), which shows the package was delivered to your address in ZIP 98103 and left at the front door 6 days ago. Please check with your neighbors or around your porch.",
+    "evidenceType": "PROOF_OF_FULFILLMENT",
+    "recommendedAction": "CONTEST_WITH_EVIDENCE",
+    "offerAmount": null,
+    "fraudSignals": [],
+    "riskLevel": "MEDIUM",
+    "winLikelihood": 85,
+    "rationale": "The tracking shows the item was delivered to the buyer's ZIP code. Since the buyer has a positive history with the shop, this is likely a delivery error or a missing package, but the seller is protected under PayPal's rules for proof of delivery.",
+    "carrier": "USPS",
+    "source": "ai",
+    "model": "google/gemma-4-31b-it:free",
+    "reviewedAt": "2026-10-31T08:24:11.679Z"
+  },
+  "PP-D-48302F": {
+    "riskLevel": "HIGH",
+    "winLikelihood": 10,
+    "recommendedAction": "ACCEPT_CLAIM",
+    "offerAmount": null,
+    "rationale": "The dispute is an unauthorized transaction with multiple fraud signals: the buyer is a first‑time customer whose account was created just 20 minutes before purchase, expedited shipping was used, and the item was delivered to a freight forwarder address in Delaware that differs from the cardholder's billing address. PayPal seller protection does not cover deliveries to an address other than the billing address for unauthorized claims, so contesting is unlikely to succeed. Accepting the claim avoids further fees and protects the shop's reputation.",
+    "fraudSignals": [
+      "first-time customer",
+      "account created 20 minutes before purchase",
+      "expedited shipping",
+      "delivery to address different from card billing address"
+    ],
+    "evidenceChecklist": [
+      {
+        "item": "Proof of delivery to the buyer's billing address",
+        "have": false
+      },
+      {
+        "item": "Tracking number matching the billing address",
+        "have": false
+      },
+      {
+        "item": "Invoice showing buyer's name and address",
+        "have": false
+      }
+    ],
+    "evidenceType": "OTHER",
+    "evidenceNote": "Item was shipped to a freight forwarder address in Delaware, which differs from the cardholder's billing address. No tracking record matches the billing address.",
+    "buyerMessage": "We understand your concern and are processing a refund for the unauthorized transaction.",
+    "source": "ai",
+    "model": "nvidia/nemotron-3.5-lightning:free",
+    "trackingNumber": null,
+    "carrier": null,
+    "reviewedAt": "2026-10-31T08:24:56.704Z"
+  },
+  "PP-D-48355B": {
+    "riskLevel": "HIGH",
+    "winLikelihood": 15,
+    "recommendedAction": "ACCEPT_CLAIM",
+    "offerAmount": null,
+    "rationale": "The merchant clearly failed to process a refund for a returned item that was received 12 days ago. This is the merchant's fault due to staff oversight, and PayPal will likely rule for the buyer since the store didn't fulfill its refund obligation.",
+    "fraudSignals": [],
+    "evidenceChecklist": [
+      {
+        "item": "Refund processed",
+        "have": false
+      },
+      {
+        "item": "Return receipt",
+        "have": true
+      },
+      {
+        "item": "Communication with buyer",
+        "have": true
+      }
+    ],
+    "evidenceType": "PROOF_OF_REFUND",
+    "trackingNumber": null,
+    "carrier": null,
+    "evidenceNote": "Merchant received returned unopened bag 12 days ago but refund was never issued due to staff oversight. Buyer returned within 30-day policy and deserves refund.",
+    "buyerMessage": "Thank you for your patience. I apologize for the delay. I have processed your refund of $38.00 for the returned coffee beans. You should see it credited to your original payment method within 3-5 business days.",
+    "source": "ai",
+    "model": "cohere/north-mini-code:free",
+    "reviewedAt": "2026-10-31T08:25:06.388Z"
+  },
+  "PP-D-48390E": {
+    "riskLevel": "LOW",
+    "winLikelihood": 0,
+    "recommendedAction": "ACCEPT_CLAIM",
+    "offerAmount": null,
+    "rationale": "Payment logs confirm two captures 4 seconds apart from a checkout double-click, so the buyer was charged twice for the same order. The shop is at fault and should refund the duplicate $27.00.",
+    "fraudSignals": [],
+    "evidenceChecklist": [
+      {
+        "item": "Payment logs showing two captures 4 seconds apart",
+        "have": true
+      },
+      {
+        "item": "Proof of refund for the duplicate charge",
+        "have": false
+      }
+    ],
+    "evidenceType": "PROOF_OF_REFUND",
+    "trackingNumber": null,
+    "carrier": null,
+    "evidenceNote": "Payment logs show two captures 4 seconds apart from a checkout double-click, confirming a duplicate charge for the same order. We will refund the duplicate $27.00.",
+    "buyerMessage": "Hi Tom, we've confirmed a duplicate charge due to a checkout double-click. We're sorry for the inconvenience and have issued a refund of $27.00 for the extra charge. The refund should appear in your account within a few business days. Thank you for your patience.",
+    "source": "ai",
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "reviewedAt": "2026-10-31T08:28:45.878Z"
+  },
+  "PP-D-48412D": {
+    "riskLevel": "MEDIUM",
+    "winLikelihood": 70,
+    "recommendedAction": "CONTEST_WITH_EVIDENCE",
+    "offerAmount": null,
+    "rationale": "The coffee was roasted 5 days before shipping and the roast date is printed on the bag, which matches a 'freshly roasted' description. The buyer's taste complaint is subjective and opened beans are non-returnable per policy. We have fulfillment records and roast-date evidence to show the item matches the listing.",
+    "fraudSignals": [],
+    "evidenceChecklist": [
+      {
+        "item": "Proof of roast date printed on bag (photo or record)",
+        "have": true
+      },
+      {
+        "item": "Proof of delivery to buyer's address",
+        "have": true
+      },
+      {
+        "item": "Listing description showing freshness claims",
+        "have": true
+      },
+      {
+        "item": "Shop policy stating opened beans are non-returnable",
+        "have": true
+      }
+    ],
+    "evidenceType": "OTHER",
+    "trackingNumber": null,
+    "carrier": null,
+    "evidenceNote": "The House Blend 500g bag was roasted 5 days before shipping; the roast date is printed on each bag. The item was delivered 9 days ago via USPS Ground Advantage. The product matches the listing description of freshly roasted coffee. Per store policy, opened coffee beans are non-returnable. The buyer's claim of stale/bitter taste is subjective and not a defect in description.",
+    "buyerMessage": "Hi Elena, we're sorry the coffee didn't meet your expectations. The beans were roasted 5 days before shipping and the roast date is printed on the bag. Because the bag has been opened, we're unable to accept a return per our policy. If there's an issue with the roast date or packaging, please let us know and we'll investigate further.",
+    "source": "ai",
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "reviewedAt": "2026-10-31T08:29:14.153Z"
+  },
+  "PP-D-48297C": {
+    "riskLevel": "MEDIUM",
+    "winLikelihood": 40,
+    "recommendedAction": "OFFER_PARTIAL_REFUND",
+    "offerAmount": 32.25,
+    "rationale": "The listing accurately describes 'ceramic burrs, aluminium body' and never claims solid steel, so the 'not as described' claim is weak on that point. However, the supplier batch #G-22 has three other handle complaints this month, indicating a likely manufacturing defect. Contesting carries moderate risk of losing the full amount; a 50% goodwill refund resolves the dispute quickly and limits losses.",
+    "fraudSignals": [],
+    "evidenceChecklist": [
+      {
+        "item": "Listing description showing 'ceramic burrs, aluminium body'",
+        "have": true
+      },
+      {
+        "item": "Proof of delivery to buyer's address",
+        "have": true
+      },
+      {
+        "item": "Supplier batch #G-22 handle complaint records",
+        "have": true
+      },
+      {
+        "item": "Buyer's photo of broken handle (broken_handle.jpg)",
+        "have": true
+      }
+    ],
+    "evidenceType": "OTHER",
+    "trackingNumber": null,
+    "carrier": null,
+    "evidenceNote": "The item description states 'ceramic burrs, aluminium body' and does not mention solid steel. The handle failure appears to be a manufacturing defect in supplier batch #G-22, which has generated three other complaints this month. We are offering a 50% goodwill refund to resolve the matter.",
+    "buyerMessage": "Hi Marcus, we're sorry to hear the handle broke on first use. Our listing describes the grinder as having an aluminium body with ceramic burrs, not solid steel. However, we've seen a few similar handle issues from the same supplier batch and want to make this right. We'd like to offer a 50% refund ($32.25) as a goodwill gesture. Please let us know if you accept.",
+    "source": "ai",
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "reviewedAt": "2026-10-31T08:29:35.354Z"
+  }
+}
