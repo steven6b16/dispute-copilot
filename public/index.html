@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dispute Copilot</title>
+  <meta name="description" content="AI copilot that triages PayPal disputes and drafts the response for small merchants.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <span>Dispute Copilot</span>
+    </div>
+    <p class="env" id="env">Connecting…</p>
+  </header>
+
+  <main>
+    <section class="brief" aria-live="polite">
+      <h1 id="headline">Loading your disputes…</h1>
+      <p id="subline"></p>
+      <div class="brief-actions">
+        <button id="triageAll" class="primary" disabled>Review all open disputes</button>
+      </div>
+    </section>
+
+    <div class="desk">
+      <section class="queue" aria-label="Dispute queue">
+        <div id="grid" class="grid"></div>
+      </section>
+
+      <aside class="slip" id="slip" aria-label="Selected dispute">
+        <div class="slip-empty">
+          <p>Pick a dispute from the list to see what happened and what to do next.</p>
+        </div>
+      </aside>
+    </div>
+
+    <section class="trail" aria-label="Sent to PayPal">
+      <h2>Sent to PayPal</h2>
+      <ol id="log" class="log"><li class="muted">Nothing sent yet. Every response waits for your approval.</li></ol>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="/vendor/ag-grid.js"></script>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

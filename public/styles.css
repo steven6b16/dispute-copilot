@@ -1,0 +1,222 @@
+/* Palette: carbon-copy receipt paper, ink, and an office stamp. */
+:root {
+  --paper: #e8edf1;
+  --sheet: #fbfcfd;
+  --ink: #1b2a4a;
+  --ink-soft: #4a5875;
+  --rule: #c9d3dc;
+  --stamp: #b8322a;
+  --ok: #2c7a57;
+  --marker: #f3df6f;
+  --focus: #2b6cd6;
+  --radius-sheet: 3px;
+  --font: 'Atkinson Hyperlegible', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #141b26;
+    --sheet: #1c2533;
+    --ink: #e4e9f2;
+    --ink-soft: #a7b2c6;
+    --rule: #33405a;
+    --stamp: #ef6b5f;
+    --ok: #5cc496;
+    --marker: #6b5f1e;
+    --focus: #7aa7ff;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.5 var(--font);
+  font-variant-numeric: tabular-nums;
+}
+
+button, input, textarea, select { font: inherit; color: inherit; }
+
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+
+/* A small "received" stamp as the logo. */
+.mark {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid var(--stamp);
+  border-radius: 50%;
+  transform: rotate(-12deg);
+  box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 5px var(--stamp);
+}
+
+.env { margin: 0; color: var(--ink-soft); font-size: 14px; }
+
+main { max-width: 1400px; margin: 0 auto; padding: 0 24px 48px; }
+
+.brief { padding: 36px 0 24px; max-width: 70ch; }
+
+.brief h1 {
+  margin: 0 0 8px;
+  font-size: clamp(26px, 3.4vw, 38px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.brief p { margin: 0; color: var(--ink-soft); font-size: 18px; }
+
+.brief-actions { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+button {
+  cursor: pointer;
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  padding: 9px 16px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+button.primary { background: var(--ink); color: var(--sheet); }
+button.approve { background: var(--ok); border-color: var(--ok); color: #fff; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.link { border: 0; padding: 0; text-decoration: underline; font-weight: 400; }
+
+.desk {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.grid { height: 520px; }
+
+/* The case slip: one sheet of paper per dispute. */
+.slip {
+  position: sticky;
+  top: 16px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sheet);
+  padding: 24px;
+  min-height: 520px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+
+.slip-empty { color: var(--ink-soft); padding-top: 160px; text-align: center; }
+
+.slip h2 { margin: 0; font-size: 22px; line-height: 1.25; }
+
+.slip .meta { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; }
+
+.slip h3 { font-size: 15px; margin: 22px 0 8px; }
+
+.due {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 2px 10px;
+  border: 2px solid var(--stamp);
+  color: var(--stamp);
+  font-weight: 700;
+  border-radius: 4px;
+  transform: rotate(-2deg);
+}
+
+.due.calm { border-color: var(--rule); color: var(--ink-soft); transform: none; }
+
+.thread { margin: 0; padding: 0; list-style: none; }
+.thread li { padding: 8px 0; border-top: 1px dashed var(--rule); }
+.thread .who { font-size: 13px; color: var(--ink-soft); }
+
+.facts textarea { width: 100%; min-height: 64px; padding: 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); resize: vertical; }
+.facts label { display: block; font-size: 14px; color: var(--ink-soft); margin-top: 8px; }
+
+/* The verdict: what the copilot recommends. */
+.verdict {
+  margin-top: 22px;
+  padding: 16px;
+  border-left: 4px solid var(--ink);
+  background: var(--paper);
+}
+
+.verdict .call { font-size: 19px; font-weight: 700; margin: 0; }
+.verdict .odds { margin: 2px 0 10px; color: var(--ink-soft); font-size: 14px; }
+.verdict p { margin: 0; }
+
+.checklist { list-style: none; padding: 0; margin: 10px 0 0; font-size: 15px; }
+.checklist li::before { content: '✓'; color: var(--ok); font-weight: 700; margin-right: 8px; }
+.checklist li.missing::before { content: '✗'; color: var(--stamp); }
+
+.signals { margin: 10px 0 0; padding-left: 18px; color: var(--stamp); font-size: 15px; }
+
+/* Drafts read like highlighted carbon copies, ready to edit. */
+.draft label { display: block; font-size: 14px; color: var(--ink-soft); margin: 14px 0 4px; }
+.draft textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: linear-gradient(transparent 0, transparent calc(100% - 3px), var(--marker) calc(100% - 3px));
+  line-height: 1.55;
+  resize: vertical;
+}
+.draft input { width: 100%; padding: 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+.row select { padding: 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); }
+
+.source { font-size: 13px; color: var(--ink-soft); margin-top: 16px; }
+
+.trail { margin-top: 40px; }
+.trail h2 { font-size: 18px; margin: 0 0 8px; }
+.log { margin: 0; padding-left: 20px; color: var(--ink-soft); }
+.log li { padding: 4px 0; }
+.muted { color: var(--ink-soft); list-style: none; margin-left: -20px; }
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--sheet);
+  padding: 10px 18px;
+  border-radius: 6px;
+  max-width: calc(100vw - 32px);
+}
+.toast.error { background: var(--stamp); }
+
+/* Grid cells */
+.risk-HIGH { color: var(--stamp); font-weight: 700; }
+.risk-MEDIUM { color: var(--ink); }
+.risk-LOW { color: var(--ink-soft); }
+
+@media (max-width: 900px) {
+  .desk { grid-template-columns: 1fr; }
+  .slip { position: static; max-height: none; min-height: 0; }
+  .slip-empty { padding: 24px 0; }
+  .grid { height: 420px; }
+  main, .bar { padding-left: 16px; padding-right: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+.case { margin-top: 18px; border-top: 1px solid var(--rule); padding-top: 12px; }
+.case summary { cursor: pointer; font-weight: 700; font-size: 15px; }
+.case[open] summary { margin-bottom: 8px; }
+.verdict { margin-top: 18px; }
