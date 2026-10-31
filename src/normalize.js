@@ -42,9 +42,21 @@ export function normalizeDispute(d, merchantFacts = {}) {
       from: m.posted_by ?? 'BUYER',
       at: m.time_posted ?? null,
       text: m.content ?? '',
+      documents: docs(m.documents),
     })),
+    // Files attached outside the message thread (buyer supporting info, earlier evidence).
+    documents: [
+      ...(d.supporting_info ?? []).flatMap((s) => docs(s.documents, s.source)),
+      ...(d.evidences ?? []).flatMap((e) => docs(e.documents, e.source)),
+    ],
     merchantFacts,
   };
+}
+
+function docs(list, source) {
+  return (Array.isArray(list) ? list : [])
+    .filter((x) => x && (x.name || x.url))
+    .map((x) => ({ name: x.name || 'Attachment', url: x.url || null, ...(source ? { source } : {}) }));
 }
 
 export function daysUntil(iso, now = Date.now()) {

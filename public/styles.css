@@ -227,3 +227,8 @@ button.link { border: 0; padding: 0; text-decoration: underline; font-weight: 40
 .sources button[aria-pressed='true'] { background: var(--ink); color: var(--sheet); }
 .sources[hidden], [hidden] { display: none !important; }
 .brief-actions { align-items: center; }
+
+.files { list-style: none; margin: 6px 0 0; padding: 0; font-size: 14px; }
+.files li::before { content: '📎'; margin-right: 6px; }
+.files a { color: var(--focus); }
+.thread .files li { border: 0; padding: 2px 0; }

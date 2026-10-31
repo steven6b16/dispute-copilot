@@ -104,6 +104,19 @@ export function createPayPalClient({ clientId, clientSecret, env = 'sandbox', fe
         form: multipart({ message }),
       });
     },
+    // Tracking the merchant already added to this PayPal transaction, if any.
+    async getTrackers(transactionId) {
+      const data = await request('GET', `/v1/shipping/trackers?transaction_id=${encodeURIComponent(transactionId)}`);
+      return data.trackers ?? [];
+    },
+    // Dispute attachments are behind PayPal auth; only fetch URLs on the PayPal API host.
+    async fetchDocument(url) {
+      const u = new URL(url);
+      if (u.origin !== base) throw Object.assign(new Error('Not a PayPal document URL'), { status: 400 });
+      const res = await fetchImpl(u, { headers: { Authorization: `Bearer ${await getToken()}` } });
+      if (!res.ok) throw new PayPalError('Could not download the attachment', res.status);
+      return res;
+    },
     // Sandbox-only helper: move a dispute to the "waiting for seller evidence" stage.
     requireSellerEvidence(id) {
       if (env !== 'sandbox') throw new Error('Only available in sandbox');

@@ -77,3 +77,17 @@ describe('PayPal client', () => {
     expect(() => pp.requireSellerEvidence('D1')).toThrow();
   });
 });
+
+describe('PayPal documents and tracking', () => {
+  it('refuses to fetch documents from other hosts', async () => {
+    const pp = createPayPalClient({ clientId: 'id', clientSecret: 'secret', fetchImpl: mockFetch(tokenRoute) });
+    await expect(pp.fetchDocument('https://evil.example.com/x')).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('looks up trackers by transaction', async () => {
+    const fetchImpl = mockFetch({ ...tokenRoute, 'GET /v1/shipping/trackers': () => ({ body: { trackers: [{ tracking_number: '1' }] } }) });
+    const pp = createPayPalClient({ clientId: 'id', clientSecret: 'secret', fetchImpl });
+    expect(await pp.getTrackers('TX1')).toEqual([{ tracking_number: '1' }]);
+    expect(fetchImpl.mock.calls.at(-1)[0]).toContain('transaction_id=TX1');
+  });
+});

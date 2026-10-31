@@ -41,6 +41,7 @@ For each dispute you decide the most profitable honest response, considering:
 - The deadline.
 - The shop's own policy.
 Rules:
+- You can see attachment file names but not their contents; never claim to know what a file shows.
 - Never invent facts, tracking numbers, dates or documents. If evidence is missing, list it in evidenceChecklist with have=false and lower winLikelihood.
 - If the shop is clearly at fault, recommend ACCEPT_CLAIM or a refund and say so plainly.
 - Drafts must be ready to send: no placeholders like [NAME].
@@ -58,7 +59,10 @@ export function buildPrompt(c, policy) {
     `Invoice: ${c.invoiceNumber ?? 'n/a'}`,
     '',
     'Messages:',
-    ...(c.messages.length ? c.messages.map((m) => `- ${m.from}: ${m.text}`) : ['- (none)']),
+    ...(c.messages.length
+      ? c.messages.map((m) => `- ${m.from}: ${m.text}${m.documents?.length ? ` [attached: ${m.documents.map((x) => x.name).join(', ')}]` : ''}`)
+      : ['- (none)']),
+    ...(c.documents?.length ? ['', `Other attachments on the case: ${c.documents.map((x) => x.name).join(', ')}`] : []),
     '',
     'Merchant records:',
     `- Fulfillment: ${c.merchantFacts?.fulfillment || '(none provided)'}`,

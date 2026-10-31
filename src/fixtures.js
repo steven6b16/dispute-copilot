@@ -26,10 +26,11 @@ function dispute({ id, reason, status, stage = 'INQUIRY', amount, buyer, items, 
         items: items.map(([name, qty]) => ({ item_name: name, item_quantity: String(qty) })),
       },
     ],
-    messages: messages.map(([who, offset, content]) => ({
+    messages: messages.map(([who, offset, content, files = []]) => ({
       posted_by: who,
       time_posted: iso(offset),
       content,
+      documents: files.map((name) => ({ name })),
     })),
   };
 }
@@ -65,7 +66,7 @@ export function demoDisputes() {
       created: -2,
       due: 1,
       messages: [
-        ['BUYER', -2, 'The grinder handle snapped the first time I used it. This is not the "solid steel" build you advertised.'],
+        ['BUYER', -2, 'The grinder handle snapped the first time I used it. This is not the "solid steel" build you advertised.', ['broken_handle.jpg']],
       ],
     }),
     dispute({

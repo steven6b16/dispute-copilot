@@ -11,7 +11,7 @@ For a one-person shop, a PayPal dispute is a small legal case with a deadline. T
 ## What it does
 
 1. **Pulls disputes from PayPal** (Disputes API, sandbox) with their transactions, items and message threads.
-2. **Combines them with the shop's own records**: shipping and tracking, listing details, customer history, and the store policy.
+2. **Combines them with the shop's own records**: shipping and tracking (filled in automatically from the tracking the shop already added in PayPal), listing details, customer history, and the store policy. Buyer attachments are listed with each message and open through an authenticated proxy.
 3. **Reviews each dispute with an LLM through OpenRouter**, which returns a structured decision through forced tool calling:
    - the recommended response (contest with evidence, offer a partial refund, refund in full, or ask the buyer for details)
    - estimated odds of winning and the risk level
@@ -33,6 +33,8 @@ The model is told never to invent facts. If tracking is missing, it says so, low
 | `POST …/make-offer` | Partial refund offers |
 | `POST …/accept-claim` | Full refund when the shop is at fault |
 | `POST …/send-message` | Messages to the buyer |
+| `GET /v1/shipping/trackers` | Auto-fills shipping records from tracking the shop already gave PayPal |
+| Dispute document URLs | Buyer attachments, fetched server-side with the OAuth token (PayPal host only) |
 | LLM via OpenRouter (any tool-calling model, default `openrouter/free`) | Per-dispute triage with a forced `submit_triage` tool and a strict JSON schema (`src/ai.js`). Output is repaired and validated; if the model is rate limited or returns bad output, the built-in rules engine takes over so the app never breaks. |
 | AG Grid Community | Dispute queue with deadline sorting and AI columns |
 
@@ -71,7 +73,7 @@ To use the real integrations, fill in `.env`:
 npm test
 ```
 
-37 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, JSON fallback, one retry on a bad answer, timeout and rate-limit fallback, hourly budget, output repair, every rules-engine branch) and the API flows (validation, state changes, audit log, sample reset).
+44 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, JSON fallback, one retry on a bad answer, timeout and rate-limit fallback, hourly budget, output repair, every rules-engine branch) and the API flows (validation, state changes, audit log, sample reset, attachment proxy, tracking auto-fill).
 
 ## Project layout
 

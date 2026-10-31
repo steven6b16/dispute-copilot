@@ -176,6 +176,16 @@ function renderBrief(s) {
 
 /* ---------- Slip ---------- */
 
+function filesHtml(c, files = []) {
+  if (!files.length) return '';
+  const items = files.map((f) => {
+    if (!f.url) return `<li>${esc(f.name)}</li>`;
+    const href = `/api/disputes/${encodeURIComponent(c.id)}/document?source=${encodeURIComponent(state.source)}&u=${encodeURIComponent(f.url)}`;
+    return `<li><a href="${esc(href)}" target="_blank" rel="noopener">${esc(f.name)}</a></li>`;
+  });
+  return `<ul class="files" aria-label="Attachments">${items.join('')}</ul>`;
+}
+
 function select(id) {
   state.selectedId = id;
   renderSlip(state.cases.find((c) => c.id === id));
@@ -202,13 +212,14 @@ function renderSlip(c) {
     <details class="case" ${c.triage ? '' : 'open'}>
       <summary>What they bought and said</summary>
       <p>${c.items.map((i) => `${i.quantity} × ${esc(i.name)}`).join('<br>') || 'No item details from PayPal.'}</p>
-      <ul class="thread">${c.messages.length ? c.messages.map((m) => `<li><div class="who">${m.from === 'SELLER' ? 'You' : 'Buyer'}${m.at ? `, ${new Date(m.at).toLocaleDateString()}` : ''}</div>${esc(m.text)}</li>`).join('') : '<li class="muted">No messages yet.</li>'}</ul>
+      <ul class="thread">${c.messages.length ? c.messages.map((m) => `<li><div class="who">${m.from === 'SELLER' ? 'You' : 'Buyer'}${m.at ? `, ${new Date(m.at).toLocaleDateString()}` : ''}</div>${esc(m.text)}${filesHtml(c, m.documents)}</li>`).join('') : '<li class="muted">No messages yet.</li>'}</ul>
+      ${c.documents.length ? `<p class="who">Other files on this case</p>${filesHtml(c, c.documents)}` : ''}
     </details>
 
     <details class="case" ${c.triage ? '' : 'open'}>
       <summary>Your records</summary>
       <form class="facts" id="factsForm">
-        <label for="fFul">Shipping and delivery</label>
+        <label for="fFul">Shipping and delivery${c.merchantFacts.source === 'paypal' ? ' (filled in from the tracking you added in PayPal)' : ''}</label>
         <textarea id="fFul" name="fulfillment" placeholder="Carrier, tracking number, delivery status">${esc(c.merchantFacts.fulfillment)}</textarea>
         <label for="fNotes">Anything else the copilot should know</label>
         <textarea id="fNotes" name="notes" placeholder="Listing details, refunds already issued, customer history">${esc(c.merchantFacts.notes)}</textarea>

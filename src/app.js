@@ -69,6 +69,15 @@ export function createApp({ store, stores, ai, policy = '' }) {
     res.json(await store.act(req.params.id, kind, body));
   }));
 
+  app.get('/api/disputes/:id/document', wrap(async (req, res, store) => {
+    const upstream = await store.document(req.params.id, String(req.query.u || ''));
+    res.set('Content-Type', upstream.headers.get('content-type') || 'application/octet-stream');
+    res.set('Content-Disposition', 'inline');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'");
+    res.send(Buffer.from(await upstream.arrayBuffer()));
+  }));
+
   app.get('/api/log', (req, res) => res.json(pick(req).log()));
 
   app.post('/api/demo/reset', (req, res) => {
