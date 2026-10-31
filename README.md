@@ -73,7 +73,7 @@ The hosted demo is set up for many visitors at once:
 
 - **Each visitor gets their own sample shop**, so one person's approvals never change what the next person sees.
 - **The sample shop opens with AI reviews recorded earlier** (labelled with the model that wrote them), so visitors see results instantly without spending the shared free-model quota. "Review again" runs the model live.
-- **With `PUBLIC_DEMO=true`, the shared PayPal sandbox is review-only.** Sending is unlocked by opening the page once with `?admin=<DEMO_ADMIN_TOKEN>`.
+- **With `PUBLIC_DEMO=true` (the default on Render), the shared PayPal sandbox is review-only.** Sending is unlocked by opening the page once with `?admin=<DEMO_ADMIN_TOKEN>`.
 - A GitHub Actions workflow pings the demo every 10 minutes so it doesn't fall asleep.
 
 ## Limitations

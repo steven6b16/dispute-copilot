@@ -40,7 +40,8 @@ const app = createApp({
   demoFactory,
   ai,
   policy: STORE_POLICY_TEXT || STORE_POLICY,
-  publicDemo: process.env.PUBLIC_DEMO === 'true',
+  // Render sets RENDER=true; treat a Render deploy as the public demo unless told otherwise.
+  publicDemo: process.env.PUBLIC_DEMO ? process.env.PUBLIC_DEMO === 'true' : process.env.RENDER === 'true',
   adminToken: process.env.DEMO_ADMIN_TOKEN || '',
 });
 
