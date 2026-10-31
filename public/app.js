@@ -254,7 +254,7 @@ function verdictHtml(c) {
       <select id="dAction">${Object.entries(ACTION_LABELS).map(([k, v]) => `<option value="${k}" ${k === t.recommendedAction ? 'selected' : ''}>${v}</option>`).join('')}</select>
       <div id="draftBody"></div>
     </div>
-    <p class="source">Drafted by ${t.source === 'claude' ? `Claude (${esc(t.model)})` : 'the built-in rules engine'}. Nothing is sent until you approve it.${state.source === 'demo' ? ' In the sample shop, approving simulates the PayPal call.' : ''}</p>
+    <p class="source">Drafted by ${t.source === 'claude' ? `Claude (${esc(t.model)})` : t.budgetFallback ? 'the built-in rules engine (the hourly AI limit for this public demo was reached)' : 'the built-in rules engine'}. Nothing is sent until you approve it.${state.source === 'demo' ? ' In the sample shop, approving simulates the PayPal call.' : ''}</p>
   `;
 }
 

@@ -26,7 +26,11 @@ const paypal = PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET
 
 const stores = { demo: createStore() };
 if (paypal) stores.sandbox = createStore({ paypal });
-const ai = createTriageEngine({ apiKey: ANTHROPIC_API_KEY, model: ANTHROPIC_MODEL || undefined });
+const ai = createTriageEngine({
+  apiKey: ANTHROPIC_API_KEY,
+  model: ANTHROPIC_MODEL || undefined,
+  maxCallsPerHour: Number(process.env.AI_MAX_CALLS_PER_HOUR) || 60,
+});
 const app = createApp({ stores, ai, policy: STORE_POLICY_TEXT || STORE_POLICY });
 
 app.listen(PORT, () => {

@@ -70,12 +70,23 @@ export function buildPrompt(c, policy) {
   ].join('\n');
 }
 
-export function createTriageEngine({ apiKey, model = 'claude-sonnet-5-5', client } = {}) {
+export function createTriageEngine({ apiKey, model = 'claude-sonnet-5-5', client, maxCallsPerHour = 60, now = Date.now } = {}) {
   const anthropic = client ?? (apiKey ? new Anthropic({ apiKey }) : null);
   const engine = anthropic ? 'claude' : 'heuristic';
+  const calls = []; // timestamps of model calls in the last hour
+
+  // The demo is public, so cap model calls to protect the API budget.
+  function underBudget() {
+    const cutoff = now() - 3_600_000;
+    while (calls.length && calls[0] < cutoff) calls.shift();
+    if (calls.length >= maxCallsPerHour) return false;
+    calls.push(now());
+    return true;
+  }
 
   async function triage(c, policy) {
     if (!anthropic) return heuristicTriage(c);
+    if (!underBudget()) return { ...heuristicTriage(c), budgetFallback: true };
     const res = await anthropic.messages.create({
       model,
       max_tokens: 1500,

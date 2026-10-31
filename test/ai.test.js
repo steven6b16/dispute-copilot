@@ -97,6 +97,22 @@ describe('Claude engine', () => {
     expect(t).toMatchObject({ source: 'claude', offerAmount: 20, winLikelihood: 62 });
   });
 
+  it('falls back to rules once the hourly budget is used', async () => {
+    const create = vi.fn().mockResolvedValue({
+      content: [{ type: 'tool_use', input: { riskLevel: 'LOW', winLikelihood: 50, recommendedAction: 'REQUEST_INFO', rationale: 'r', evidenceChecklist: [], evidenceType: 'OTHER', evidenceNote: 'n', buyerMessage: 'm' } }],
+    });
+    let t = 0;
+    const engine = createTriageEngine({ client: { messages: { create } }, maxCallsPerHour: 2, now: () => t });
+    const c = cases['PP-D-48211A'];
+    await engine.triage(c);
+    await engine.triage(c);
+    const third = await engine.triage(c);
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(third).toMatchObject({ source: 'heuristic', budgetFallback: true });
+    t += 3_600_001;
+    expect((await engine.triage(c)).source).toBe('claude');
+  });
+
   it('falls back to heuristics without a key', () => {
     expect(createTriageEngine({}).engine).toBe('heuristic');
   });
