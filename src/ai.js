@@ -74,6 +74,7 @@ export function createTriageEngine({
   apiKey,
   model = 'openrouter/free',
   maxCallsPerHour = 60,
+  timeoutMs = 30_000,
   fetchImpl = fetch,
   now = Date.now,
 } = {}) {
@@ -92,6 +93,7 @@ export function createTriageEngine({
   async function callModel(c, policy) {
     const res = await fetchImpl(OPENROUTER_URL, {
       method: 'POST',
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -126,8 +128,9 @@ export function createTriageEngine({
       return sanitize({ ...input, source: 'ai', model: usedModel }, c);
     } catch (err) {
       // Free models are rate limited and sometimes return bad output: keep the app usable.
-      console.error('AI triage failed, using rules:', err.message);
-      return { ...heuristicTriage(c), fallbackReason: `the AI model was unavailable (${err.message})` };
+      const reason = err.name === 'TimeoutError' ? `no answer within ${Math.round(timeoutMs / 1000)} seconds` : err.message;
+      console.error('AI triage failed, using rules:', reason);
+      return { ...heuristicTriage(c), fallbackReason: `the AI model was unavailable (${reason})` };
     }
   }
 

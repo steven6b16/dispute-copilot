@@ -127,6 +127,15 @@ describe('OpenRouter engine', () => {
     expect((await engine.triage(c)).source).toBe('ai');
   });
 
+  it('falls back to rules when the model is too slow', async () => {
+    const fetchImpl = vi.fn((url, opts) => new Promise((resolve, reject) => {
+      opts.signal.addEventListener('abort', () => reject(opts.signal.reason));
+    }));
+    const t = await createTriageEngine({ apiKey: 'k', fetchImpl, timeoutMs: 20 }).triage(cases['PP-D-48211A']);
+    expect(t.source).toBe('heuristic');
+    expect(t.fallbackReason).toMatch(/no answer within/);
+  });
+
   it('uses rules without a key', () => {
     expect(createTriageEngine({}).engine).toBe('heuristic');
   });

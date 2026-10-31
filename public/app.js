@@ -340,9 +340,21 @@ async function boot() {
   initGrid();
   $('#triageAll').addEventListener('click', (e) =>
     guard(e.target, async () => {
-      e.target.textContent = 'Reviewing…';
-      const r = await api('/api/triage-all', { method: 'POST' });
-      toast(r.failed ? `Reviewed ${r.triaged}, ${r.failed} failed: ${r.error || 'unknown error'}` : `Reviewed ${r.triaged} disputes.`, Boolean(r.failed));
+      // One request per dispute keeps each call short and shows progress as results land.
+      const open = state.cases.filter((c) => c.actionable);
+      let failed = 0;
+      for (const [i, c] of open.entries()) {
+        e.target.textContent = `Reviewing ${i + 1} of ${open.length}…`;
+        try {
+          const updated = await api(`/api/disputes/${c.id}/triage`, { method: 'POST' });
+          state.cases = state.cases.map((x) => (x.id === updated.id ? updated : x));
+          state.grid.applyTransaction({ update: [updated] });
+          if (state.selectedId === updated.id) renderSlip(updated);
+        } catch {
+          failed += 1;
+        }
+      }
+      toast(failed ? `Reviewed ${open.length - failed}, ${failed} failed. Try those again.` : `Reviewed ${open.length} disputes.`, Boolean(failed));
       await load();
     }),
   );

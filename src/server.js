@@ -30,6 +30,7 @@ const ai = createTriageEngine({
   apiKey: OPENROUTER_API_KEY,
   model: OPENROUTER_MODEL || undefined,
   maxCallsPerHour: Number(process.env.AI_MAX_CALLS_PER_HOUR) || 60,
+  timeoutMs: Number(process.env.AI_TIMEOUT_MS) || 30_000,
 });
 const app = createApp({ stores, ai, policy: STORE_POLICY_TEXT || STORE_POLICY });
 
