@@ -127,6 +127,21 @@ describe('OpenRouter engine', () => {
     expect((await engine.triage(c)).source).toBe('ai');
   });
 
+  it('retries once with another model after a bad answer', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ model: 'weak/model', choices: [{ message: { content: 'I cannot help' } }] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ model: 'good/model', choices: [{ message: { tool_calls: [{ function: { arguments: JSON.stringify(triageArgs) } }] } }] })));
+    const t = await createTriageEngine({ apiKey: 'k', fetchImpl }).triage(cases['PP-D-48297C']);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(t).toMatchObject({ source: 'ai', model: 'good/model' });
+  });
+
+  it('does not retry a rate-limited call', async () => {
+    const fetchImpl = openRouterReply(null, 429);
+    await createTriageEngine({ apiKey: 'k', fetchImpl }).triage(cases['PP-D-48297C']);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to rules when the model is too slow', async () => {
     const fetchImpl = vi.fn((url, opts) => new Promise((resolve, reject) => {
       opts.signal.addEventListener('abort', () => reject(opts.signal.reason));

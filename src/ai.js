@@ -70,6 +70,8 @@ export function buildPrompt(c, policy) {
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
+class BadAnswerError extends Error {}
+
 export function createTriageEngine({
   apiKey,
   model = 'openrouter/free',
@@ -115,8 +117,13 @@ export function createTriageEngine({
     if (!res.ok) throw new Error(data?.error?.message || `OpenRouter request failed (${res.status})`);
     const msg = data.choices?.[0]?.message ?? {};
     const args = msg.tool_calls?.[0]?.function?.arguments ?? extractJson(msg.content);
-    const input = typeof args === 'string' ? JSON.parse(args) : args;
-    if (!input || typeof input !== 'object') throw new Error('Model did not return a triage');
+    let input;
+    try {
+      input = typeof args === 'string' ? JSON.parse(args) : args;
+    } catch {
+      input = null;
+    }
+    if (!input || typeof input !== 'object' || !input.recommendedAction) throw new BadAnswerError('Model did not return a triage');
     return { input, usedModel: data.model || model };
   }
 
@@ -124,8 +131,15 @@ export function createTriageEngine({
     if (!apiKey) return heuristicTriage(c);
     if (!underBudget()) return { ...heuristicTriage(c), fallbackReason: 'the hourly AI limit for this public demo was reached' };
     try {
-      const { input, usedModel } = await callModel(c, policy);
-      return sanitize({ ...input, source: 'ai', model: usedModel }, c);
+      let result;
+      try {
+        result = await callModel(c, policy);
+      } catch (err) {
+        // A bad answer is worth one retry (openrouter/free picks another model); slow or rate-limited calls are not.
+        if (!(err instanceof BadAnswerError) || !underBudget()) throw err;
+        result = await callModel(c, policy);
+      }
+      return sanitize({ ...result.input, source: 'ai', model: result.usedModel }, c);
     } catch (err) {
       // Free models are rate limited and sometimes return bad output: keep the app usable.
       const reason = err.name === 'TimeoutError' ? `no answer within ${Math.round(timeoutMs / 1000)} seconds` : err.message;

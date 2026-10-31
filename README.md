@@ -71,7 +71,7 @@ To use the real integrations, fill in `.env`:
 npm test
 ```
 
-34 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, JSON fallback, rate-limit fallback, hourly budget, output repair, every rules-engine branch) and the API flows (validation, state changes, audit log, sample reset).
+37 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, JSON fallback, one retry on a bad answer, timeout and rate-limit fallback, hourly budget, output repair, every rules-engine branch) and the API flows (validation, state changes, audit log, sample reset).
 
 ## Project layout
 
