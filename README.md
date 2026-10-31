@@ -67,6 +67,15 @@ To use the real integrations, fill in `.env`:
 3. Log in to sandbox.paypal.com as the buyer, open the transaction and **Report a problem** to open a dispute.
 4. Reload Dispute Copilot. The dispute appears in the queue.
 
+## Public demo mode
+
+The hosted demo is set up for many visitors at once:
+
+- **Each visitor gets their own sample shop**, so one person's approvals never change what the next person sees.
+- **The sample shop opens with AI reviews recorded earlier** (labelled with the model that wrote them), so visitors see results instantly without spending the shared free-model quota. "Review again" runs the model live.
+- **With `PUBLIC_DEMO=true`, the shared PayPal sandbox is review-only.** Sending is unlocked by opening the page once with `?admin=<DEMO_ADMIN_TOKEN>`.
+- A GitHub Actions workflow pings the demo every 10 minutes so it doesn't fall asleep.
+
 ## Limitations
 
 - Merchant records, reviews and the audit trail are kept in memory. They reset when the server restarts (on Render's free plan that includes waking from sleep). A real deployment would store them in a database.
@@ -79,7 +88,7 @@ To use the real integrations, fill in `.env`:
 npm test
 ```
 
-45 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, JSON fallback, one retry on a bad answer, timeout and rate-limit fallback, hourly budget, output repair, every rules-engine branch) and the API flows (validation, state changes, audit log, sample reset, attachment proxy, tracking auto-fill).
+49 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, JSON fallback, one retry on a bad answer, timeout and rate-limit fallback, hourly budget, output repair, every rules-engine branch) and the API flows (validation, state changes, audit log, sample reset, attachment proxy, tracking auto-fill).
 
 ## Project layout
 

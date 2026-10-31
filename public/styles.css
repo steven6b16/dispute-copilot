@@ -232,3 +232,4 @@ button.link { border: 0; padding: 0; text-decoration: underline; font-weight: 40
 .files li::before { content: '📎'; margin-right: 6px; }
 .files a { color: var(--focus); }
 .thread .files li { border: 0; padding: 2px 0; }
+.locked { font-size: 14px; color: var(--ink-soft); flex: 1 1 220px; }

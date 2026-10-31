@@ -1,0 +1,15 @@
+# Render's free plan sleeps after 15 minutes without traffic, and the first visit
+# then takes about 50 seconds. Ping the demo so judges never land on a cold start.
+name: Keep demo awake
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the live demo
+        run: curl -fsS --max-time 90 https://dispute-copilot-49lb.onrender.com/api/status > /dev/null

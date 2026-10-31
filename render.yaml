@@ -19,3 +19,7 @@ services:
         sync: false
       - key: OPENROUTER_MODEL
         value: openrouter/free
+      - key: PUBLIC_DEMO
+        value: "true"
+      - key: DEMO_ADMIN_TOKEN
+        generateValue: true

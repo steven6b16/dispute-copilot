@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { createStore } from '../src/store.js';
@@ -78,9 +78,36 @@ describe('API (demo mode)', () => {
   it('serves sandbox and sample data side by side', async () => {
     const sandbox = { mode: 'sandbox', list: async () => [], log: () => [] };
     const both = createApp({ stores: { demo: createStore(), sandbox }, ai: createTriageEngine({}) });
-    expect((await request(both).get('/api/status')).body.defaultSource).toBe('sandbox');
-    expect((await request(both).get('/api/disputes')).body.cases).toHaveLength(0);
-    expect((await request(both).get('/api/disputes?source=demo')).body.cases).toHaveLength(7);
+    expect((await request(both).get('/api/status')).body).toMatchObject({ defaultSource: 'demo', sources: ['demo', 'sandbox'] });
+    expect((await request(both).get('/api/disputes?source=sandbox')).body.cases).toHaveLength(0);
+    expect((await request(both).get('/api/disputes')).body.cases).toHaveLength(7);
+  });
+
+  it('gives every visitor their own sample shop', async () => {
+    const perVisitor = createApp({ demoFactory: () => createStore(), ai: createTriageEngine({}) });
+    const a = { 'x-demo-session': 'visitor-aaaa' };
+    const b = { 'x-demo-session': 'visitor-bbbb' };
+    await request(perVisitor).post('/api/disputes/PP-D-48390E/actions/accept').set(a).send({ note: 'sorry' });
+    expect((await request(perVisitor).get('/api/disputes/PP-D-48390E').set(a)).body.status).toBe('RESOLVED');
+    expect((await request(perVisitor).get('/api/disputes/PP-D-48390E').set(b)).body.status).toBe('OPEN');
+  });
+
+  it('opens the sample shop with saved AI reviews', async () => {
+    const saved = { 'PP-D-48211A': { recommendedAction: 'CONTEST_WITH_EVIDENCE', source: 'ai', model: 'm' } };
+    const withSaved = createApp({ demoFactory: () => createStore({ savedReviews: saved }), ai: createTriageEngine({}) });
+    const res = await request(withSaved).get('/api/disputes/PP-D-48211A').set({ 'x-demo-session': 'visitor-cccc' });
+    expect(res.body.triage).toMatchObject({ source: 'ai', saved: true });
+  });
+
+  it('locks sandbox sending on the public demo unless the owner token is sent', async () => {
+    const act = vi.fn(async () => ({ id: 'D1' }));
+    const sandbox = { mode: 'sandbox', get: async () => ({ id: 'D1', amount: 10, actionable: true }), act, log: () => [] };
+    const pub = createApp({ stores: { demo: createStore(), sandbox }, ai: createTriageEngine({}), publicDemo: true, adminToken: 'secret-token' });
+    const send = () => request(pub).post('/api/disputes/D1/actions/message?source=sandbox').send({ message: 'hi' });
+    expect((await send()).status).toBe(403);
+    expect(act).not.toHaveBeenCalled();
+    expect((await send().set('x-admin-token', 'secret-token')).status).toBe(200);
+    expect((await request(pub).get('/api/status')).body.sandboxSendLocked).toBe(true);
   });
 
   it('returns 404 for unknown disputes', async () => {

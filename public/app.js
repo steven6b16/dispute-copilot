@@ -31,12 +31,43 @@ const esc = (s) =>
 const money = (n, cur = 'USD') =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(n);
 
+// A random ID per browser so each visitor gets their own sample shop on the server.
+const session = (() => {
+  const fresh = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
+  try {
+    let id = localStorage.getItem('demoSession');
+    if (!id) localStorage.setItem('demoSession', (id = fresh()));
+    return id;
+  } catch {
+    return fresh();
+  }
+})();
+
+// The owner can unlock sandbox sending on the public demo by opening the page once with ?admin=TOKEN.
+const adminToken = (() => {
+  try {
+    const fromUrl = new URLSearchParams(location.search).get('admin');
+    if (fromUrl) {
+      localStorage.setItem('adminToken', fromUrl);
+      history.replaceState(null, '', location.pathname);
+    }
+    return localStorage.getItem('adminToken') || '';
+  } catch {
+    return '';
+  }
+})();
+
 async function api(path, opts = {}) {
   const url = new URL(path, location.origin);
   if (state.source) url.searchParams.set('source', state.source);
   const res = await fetch(url, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Demo-Session': session,
+      ...(adminToken ? { 'X-Admin-Token': adminToken } : {}),
+      ...(opts.headers || {}),
+    },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
@@ -265,8 +296,21 @@ function verdictHtml(c) {
       <select id="dAction">${Object.entries(ACTION_LABELS).map(([k, v]) => `<option value="${k}" ${k === t.recommendedAction ? 'selected' : ''}>${v}</option>`).join('')}</select>
       <div id="draftBody"></div>
     </div>
-    <p class="source">Drafted by ${t.source === 'ai' ? `${esc(t.model)} via OpenRouter` : t.fallbackReason ? `the built-in rules engine, because ${esc(t.fallbackReason)}` : 'the built-in rules engine'}. Nothing is sent until you approve it.${state.source === 'demo' ? ' In the sample shop, approving simulates the PayPal call.' : ''}</p>
+    <p class="source">${draftedBy(t)} Nothing is sent until you approve it.${state.source === 'demo' ? ' In the sample shop, approving simulates the PayPal call.' : ''}</p>
   `;
+}
+
+function draftedBy(t) {
+  if (t.source === 'ai') {
+    return t.saved
+      ? `Reviewed earlier by ${esc(t.model)} via OpenRouter and saved for this demo. Choose Review again to run it live.`
+      : `Drafted by ${esc(t.model)} via OpenRouter.`;
+  }
+  return t.fallbackReason ? `Drafted by the built-in rules engine, because ${esc(t.fallbackReason)}.` : 'Drafted by the built-in rules engine.';
+}
+
+function sandboxLocked() {
+  return state.source === 'sandbox' && state.status?.sandboxSendLocked;
 }
 
 function wireDrafts(c) {
@@ -320,8 +364,15 @@ function wireDrafts(c) {
       $('#send').onclick = (e) => send(e.target, c, 'message', { message: $('#dNote').value }, 'Message sent to the buyer.');
     }
   };
-  $('#dAction').onchange = (e) => render(e.target.value);
-  render(t.recommendedAction);
+  const show = (action) => {
+    render(action);
+    if (sandboxLocked()) {
+      $('#send').disabled = true;
+      $('#send').insertAdjacentHTML('afterend', '<span class="locked">Sending is turned off on the public demo so the shared PayPal sandbox stays intact. Try sending in the sample shop.</span>');
+    }
+  };
+  $('#dAction').onchange = (e) => show(e.target.value);
+  show(t.recommendedAction);
 }
 
 async function send(btn, c, kind, payload, done) {
@@ -371,7 +422,7 @@ async function boot() {
   );
   try {
     state.status = await api('/api/status');
-    state.source = savedSource() ?? state.status.defaultSource;
+    state.source = state.status.defaultSource;
     if (!state.status.sources.includes(state.source)) state.source = state.status.defaultSource;
     renderSources();
     await load();
@@ -379,10 +430,6 @@ async function boot() {
     $('#headline').textContent = 'Could not load disputes.';
     $('#subline').textContent = err.message;
   }
-}
-
-function savedSource() {
-  try { return localStorage.getItem('source'); } catch { return null; }
 }
 
 function renderSources() {
@@ -399,7 +446,6 @@ function renderSources() {
 async function switchSource(source) {
   state.source = source;
   state.selectedId = null;
-  try { localStorage.setItem('source', source); } catch { /* storage unavailable */ }
   $('#slip').innerHTML = '<div class="slip-empty"><p>Pick a dispute from the list to see what happened and what to do next.</p></div>';
   renderSources();
   await load();

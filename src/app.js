@@ -6,11 +6,36 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(root, 'public');
 const agGridPath = path.join(root, 'node_modules', 'ag-grid-community', 'dist', 'ag-grid-community.min.js');
 
-export function createApp({ store, stores, ai, policy = '' }) {
-  // stores: { sandbox?: Store, demo: Store }. The client picks one with ?source=.
-  const all = stores ?? { [store.mode]: store };
-  const defaultSource = all.sandbox ? 'sandbox' : 'demo';
-  const pick = (req) => all[req.query.source] ?? all[defaultSource];
+export function createApp({ store, stores, sandbox, demoFactory, ai, policy = '', publicDemo = false, adminToken = '' }) {
+  // Back-compat with a single store or a { demo, sandbox } map (used by tests).
+  if (store) stores = { [store.mode]: store };
+  sandbox ??= stores?.sandbox ?? null;
+  const sharedDemo = stores?.demo ?? null;
+  demoFactory ??= () => sharedDemo;
+
+  // Every visitor gets their own sample shop, so one person's clicks never change
+  // what the next person sees. Keyed by a random ID the browser keeps.
+  const sessions = new Map();
+  const MAX_SESSIONS = 300;
+  function demoFor(req) {
+    const sid = req.get('x-demo-session');
+    if (!sid || !/^[A-Za-z0-9-]{8,64}$/.test(sid)) return sharedDemo ?? demoFactory();
+    let s = sessions.get(sid);
+    if (s) {
+      sessions.delete(sid); // refresh LRU position
+    } else {
+      s = demoFactory();
+      if (sessions.size >= MAX_SESSIONS) sessions.delete(sessions.keys().next().value);
+    }
+    sessions.set(sid, s);
+    return s;
+  }
+
+  const sources = ['demo', ...(sandbox ? ['sandbox'] : [])];
+  const defaultSource = 'demo';
+  const pick = (req) => (req.query.source === 'sandbox' && sandbox ? sandbox : demoFor(req));
+  // On the public demo, the shared sandbox is review-only unless the owner's token is sent.
+  const sendLocked = (req) => publicDemo && (!adminToken || req.get('x-admin-token') !== adminToken);
 
   const app = express();
   app.use(express.json({ limit: '100kb' }));
@@ -20,7 +45,7 @@ export function createApp({ store, stores, ai, policy = '' }) {
   const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, pick(req))).catch(next);
 
   app.get('/api/status', (req, res) => {
-    res.json({ sources: Object.keys(all), defaultSource, ai: ai.engine, model: ai.model, policy });
+    res.json({ sources, defaultSource, sandboxSendLocked: Boolean(sandbox) && sendLocked(req), ai: ai.engine, model: ai.model, policy });
   });
 
   app.get('/api/disputes', wrap(async (req, res, store) => {
@@ -64,6 +89,9 @@ export function createApp({ store, stores, ai, policy = '' }) {
   app.post('/api/disputes/:id/actions/:kind', wrap(async (req, res, store) => {
     const { kind } = req.params;
     const body = req.body ?? {};
+    if (store === sandbox && sendLocked(req)) {
+      return res.status(403).json({ error: 'Sending is turned off on the public demo so the shared PayPal sandbox stays intact. Try it in the sample shop.' });
+    }
     const error = validateAction(kind, body, await store.get(req.params.id));
     if (error) return res.status(400).json({ error });
     res.json(await store.act(req.params.id, kind, body));
@@ -81,7 +109,7 @@ export function createApp({ store, stores, ai, policy = '' }) {
   app.get('/api/log', (req, res) => res.json(pick(req).log()));
 
   app.post('/api/demo/reset', (req, res) => {
-    all.demo?.reset();
+    demoFor(req).reset();
     res.json({ ok: true });
   });
 

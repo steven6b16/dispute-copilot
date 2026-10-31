@@ -3,7 +3,7 @@
 import { normalizeDispute, isActionable } from './normalize.js';
 import { demoDisputes, demoMerchantFacts } from './fixtures.js';
 
-export function createStore({ paypal = null } = {}) {
+export function createStore({ paypal = null, savedReviews = {} } = {}) {
   const mode = paypal ? 'sandbox' : 'demo';
   let demo = mode === 'demo' ? demoDisputes() : null;
   let facts = mode === 'demo' ? demoMerchantFacts() : {};
@@ -11,12 +11,20 @@ export function createStore({ paypal = null } = {}) {
   const trackerChecked = new Set(); // transaction IDs already looked up in PayPal tracking
   const log = []; // audit trail of everything sent
 
+  // The sample shop opens with AI reviews recorded earlier, so visitors see results
+  // instantly without spending the shared free-model quota. "Review again" runs live.
+  function seedReviews() {
+    for (const [id, t] of Object.entries(savedReviews)) triages.set(id, { ...t, saved: true });
+  }
+  if (mode === 'demo') seedReviews();
+
   function reset() {
     if (mode !== 'demo') return;
     demo = demoDisputes();
     facts = demoMerchantFacts();
     triages.clear();
     log.length = 0;
+    seedReviews();
   }
 
   async function rawList() {

@@ -127,7 +127,8 @@ export function createTriageEngine({
     } catch {
       input = null;
     }
-    if (!input || typeof input !== 'object' || !input.recommendedAction) throw new BadAnswerError('Model did not return a triage');
+    input = unwrap(input);
+    if (!input) throw new BadAnswerError('Model did not return a triage');
     return { input, usedModel: data.model || model };
   }
 
@@ -153,6 +154,25 @@ export function createTriageEngine({
   }
 
   return { engine, model: apiKey ? model : null, triage };
+}
+
+// Weaker models sometimes nest the answer ({"submit_triage": {...}}, {"parameters": {...}})
+// or send it as a JSON string; dig one or two levels for the object that has a decision.
+export function unwrap(value, depth = 0) {
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!value || typeof value !== 'object' || depth > 2) return null;
+  if (typeof value.recommendedAction === 'string') return value;
+  for (const v of Object.values(value)) {
+    const found = unwrap(v, depth + 1);
+    if (found) return found;
+  }
+  return null;
 }
 
 // Some models answer in plain text instead of calling the tool; take the JSON object out.

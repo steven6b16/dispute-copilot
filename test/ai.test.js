@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { heuristicTriage, sanitize, createTriageEngine, buildPrompt, extractJson } from '../src/ai.js';
+import { heuristicTriage, sanitize, createTriageEngine, buildPrompt, extractJson, unwrap } from '../src/ai.js';
 import { normalizeDispute } from '../src/normalize.js';
 import { demoDisputes, demoMerchantFacts } from '../src/fixtures.js';
 
@@ -159,6 +159,12 @@ describe('OpenRouter engine', () => {
     const p = buildPrompt(cases['PP-D-48211A'], 'POLICY TEXT');
     expect(p).toContain('9400 1118');
     expect(p).toContain('POLICY TEXT');
+  });
+
+  it('unwraps answers nested by weaker models', () => {
+    expect(unwrap({ submit_triage: { recommendedAction: 'ACCEPT_CLAIM' } })).toEqual({ recommendedAction: 'ACCEPT_CLAIM' });
+    expect(unwrap({ parameters: JSON.stringify({ recommendedAction: 'REQUEST_INFO' }) })).toEqual({ recommendedAction: 'REQUEST_INFO' });
+    expect(unwrap({ nothing: 1 })).toBeNull();
   });
 
   it('extracts JSON from text and ignores junk', () => {
