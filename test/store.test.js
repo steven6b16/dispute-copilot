@@ -31,6 +31,12 @@ describe('attachments', () => {
     expect(c.documents[0]).toMatchObject({ name: 'photo.png', source: 'SUBMITTED_BY_BUYER' });
   });
 
+  it('does not repeat message attachments in the case files', () => {
+    const dup = structuredClone(raw);
+    dup.supporting_info[0].documents.push(dup.messages[0].documents[0]);
+    expect(normalizeDispute(dup).documents.map((x) => x.name)).toEqual(['photo.png']);
+  });
+
   it('only proxies attachments that belong to the dispute', async () => {
     const paypal = fakePayPal();
     const store = createStore({ paypal });

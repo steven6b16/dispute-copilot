@@ -67,13 +67,19 @@ To use the real integrations, fill in `.env`:
 3. Log in to sandbox.paypal.com as the buyer, open the transaction and **Report a problem** to open a dispute.
 4. Reload Dispute Copilot. The dispute appears in the queue.
 
+## Limitations
+
+- Merchant records, reviews and the audit trail are kept in memory. They reset when the server restarts (on Render's free plan that includes waking from sleep). A real deployment would store them in a database.
+- The AI sees attachment names, not their contents.
+- Tracking auto-fill only works when the shop added tracking to the transaction in PayPal.
+
 ## Tests
 
 ```bash
 npm test
 ```
 
-44 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, JSON fallback, one retry on a bad answer, timeout and rate-limit fallback, hourly budget, output repair, every rules-engine branch) and the API flows (validation, state changes, audit log, sample reset, attachment proxy, tracking auto-fill).
+45 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, JSON fallback, one retry on a bad answer, timeout and rate-limit fallback, hourly budget, output repair, every rules-engine branch) and the API flows (validation, state changes, audit log, sample reset, attachment proxy, tracking auto-fill).
 
 ## Project layout
 

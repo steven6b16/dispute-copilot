@@ -45,12 +45,22 @@ export function normalizeDispute(d, merchantFacts = {}) {
       documents: docs(m.documents),
     })),
     // Files attached outside the message thread (buyer supporting info, earlier evidence).
-    documents: [
-      ...(d.supporting_info ?? []).flatMap((s) => docs(s.documents, s.source)),
-      ...(d.evidences ?? []).flatMap((e) => docs(e.documents, e.source)),
-    ],
+    // PayPal often repeats message attachments here, so drop those.
+    documents: dedupe(
+      [
+        ...(d.supporting_info ?? []).flatMap((s) => docs(s.documents, s.source)),
+        ...(d.evidences ?? []).flatMap((e) => docs(e.documents, e.source)),
+      ],
+      (d.messages ?? []).flatMap((m) => docs(m.documents)),
+    ),
     merchantFacts,
   };
+}
+
+function dedupe(list, seen) {
+  const key = (x) => x.url || x.name;
+  const taken = new Set(seen.map(key));
+  return list.filter((x) => !taken.has(key(x)) && taken.add(key(x)));
 }
 
 function docs(list, source) {
