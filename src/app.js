@@ -6,52 +6,62 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(root, 'public');
 const agGridPath = path.join(root, 'node_modules', 'ag-grid-community', 'dist', 'ag-grid-community.min.js');
 
-export function createApp({ store, ai, policy = '' }) {
+export function createApp({ store, stores, ai, policy = '' }) {
+  // stores: { sandbox?: Store, demo: Store }. The client picks one with ?source=.
+  const all = stores ?? { [store.mode]: store };
+  const defaultSource = all.sandbox ? 'sandbox' : 'demo';
+  const pick = (req) => all[req.query.source] ?? all[defaultSource];
+
   const app = express();
   app.use(express.json({ limit: '100kb' }));
   app.use(express.static(publicDir));
   app.get('/vendor/ag-grid.js', (req, res) => res.sendFile(agGridPath));
 
-  const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
+  const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, pick(req))).catch(next);
 
   app.get('/api/status', (req, res) => {
-    res.json({ mode: store.mode, ai: ai.engine, model: ai.model, policy });
+    res.json({ sources: Object.keys(all), defaultSource, ai: ai.engine, model: ai.model, policy });
   });
 
-  app.get('/api/disputes', wrap(async (req, res) => {
+  app.get('/api/disputes', wrap(async (req, res, store) => {
     const cases = await store.list();
     res.json({ cases, summary: summarize(cases) });
   }));
 
-  app.get('/api/disputes/:id', wrap(async (req, res) => {
+  app.get('/api/disputes/:id', wrap(async (req, res, store) => {
     res.json(await store.get(req.params.id));
   }));
 
-  app.put('/api/disputes/:id/facts', wrap(async (req, res) => {
+  app.put('/api/disputes/:id/facts', wrap(async (req, res, store) => {
     const c = await store.get(req.params.id);
     if (!c.transactionId) return res.status(400).json({ error: 'Dispute has no transaction ID' });
     store.setFacts(c.transactionId, req.body ?? {});
     res.json(await store.get(req.params.id));
   }));
 
-  app.post('/api/disputes/:id/triage', wrap(async (req, res) => {
+  app.post('/api/disputes/:id/triage', wrap(async (req, res, store) => {
     const c = await store.get(req.params.id);
     store.setTriage(c.id, await ai.triage(c, policy));
     res.json(await store.get(c.id));
   }));
 
-  app.post('/api/triage-all', wrap(async (req, res) => {
+  app.post('/api/triage-all', wrap(async (req, res, store) => {
     const cases = (await store.list()).filter((c) => c.actionable);
     const results = await Promise.allSettled(cases.map((c) => ai.triage(c, policy)));
     let failed = 0;
+    let error;
     results.forEach((r, i) => {
       if (r.status === 'fulfilled') store.setTriage(cases[i].id, r.value);
-      else failed += 1;
+      else {
+        failed += 1;
+        error ??= r.reason?.message;
+        console.error('Triage failed for', cases[i].id, r.reason);
+      }
     });
-    res.json({ triaged: cases.length - failed, failed });
+    res.json({ triaged: cases.length - failed, failed, ...(error ? { error } : {}) });
   }));
 
-  app.post('/api/disputes/:id/actions/:kind', wrap(async (req, res) => {
+  app.post('/api/disputes/:id/actions/:kind', wrap(async (req, res, store) => {
     const { kind } = req.params;
     const body = req.body ?? {};
     const error = validateAction(kind, body, await store.get(req.params.id));
@@ -59,7 +69,12 @@ export function createApp({ store, ai, policy = '' }) {
     res.json(await store.act(req.params.id, kind, body));
   }));
 
-  app.get('/api/log', (req, res) => res.json(store.log()));
+  app.get('/api/log', (req, res) => res.json(pick(req).log()));
+
+  app.post('/api/demo/reset', (req, res) => {
+    all.demo?.reset();
+    res.json({ ok: true });
+  });
 
   app.use((err, req, res, next) => {
     const status = err.status && err.status < 600 ? err.status : 500;

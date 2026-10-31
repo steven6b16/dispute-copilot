@@ -12,7 +12,7 @@ beforeEach(() => {
 describe('API (demo mode)', () => {
   it('reports status', async () => {
     const res = await request(app).get('/api/status');
-    expect(res.body).toMatchObject({ mode: 'demo', ai: 'heuristic' });
+    expect(res.body).toMatchObject({ sources: ['demo'], defaultSource: 'demo', ai: 'heuristic' });
   });
 
   it('lists disputes with a summary', async () => {
@@ -65,6 +65,22 @@ describe('API (demo mode)', () => {
     const res = await request(app).post('/api/disputes/PP-D-48211A/triage');
     expect(res.body.merchantFacts.fulfillment).toBe('Not shipped yet');
     expect(res.body.triage.recommendedAction).toBe('REQUEST_INFO');
+  });
+
+  it('resets the sample shop', async () => {
+    await request(app).post('/api/disputes/PP-D-48390E/actions/accept').send({ note: 'sorry' });
+    await request(app).post('/api/demo/reset');
+    const res = await request(app).get('/api/disputes/PP-D-48390E');
+    expect(res.body.status).toBe('OPEN');
+    expect((await request(app).get('/api/log')).body).toEqual([]);
+  });
+
+  it('serves sandbox and sample data side by side', async () => {
+    const sandbox = { mode: 'sandbox', list: async () => [], log: () => [] };
+    const both = createApp({ stores: { demo: createStore(), sandbox }, ai: createTriageEngine({}) });
+    expect((await request(both).get('/api/status')).body.defaultSource).toBe('sandbox');
+    expect((await request(both).get('/api/disputes')).body.cases).toHaveLength(0);
+    expect((await request(both).get('/api/disputes?source=demo')).body.cases).toHaveLength(7);
   });
 
   it('returns 404 for unknown disputes', async () => {

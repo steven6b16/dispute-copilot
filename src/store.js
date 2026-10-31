@@ -5,10 +5,18 @@ import { demoDisputes, demoMerchantFacts } from './fixtures.js';
 
 export function createStore({ paypal = null } = {}) {
   const mode = paypal ? 'sandbox' : 'demo';
-  const demo = mode === 'demo' ? demoDisputes() : null;
-  const facts = mode === 'demo' ? demoMerchantFacts() : {};
+  let demo = mode === 'demo' ? demoDisputes() : null;
+  let facts = mode === 'demo' ? demoMerchantFacts() : {};
   const triages = new Map(); // disputeId -> triage
   const log = []; // audit trail of everything sent
+
+  function reset() {
+    if (mode !== 'demo') return;
+    demo = demoDisputes();
+    facts = demoMerchantFacts();
+    triages.clear();
+    log.length = 0;
+  }
 
   async function rawList() {
     if (demo) return demo;
@@ -76,6 +84,7 @@ export function createStore({ paypal = null } = {}) {
       triages.set(id, { ...t, at: new Date().toISOString() });
     },
     act,
+    reset,
     log: () => log.slice(0, 100),
   };
 }

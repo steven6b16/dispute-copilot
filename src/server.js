@@ -24,12 +24,13 @@ const paypal = PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET
   ? createPayPalClient({ clientId: PAYPAL_CLIENT_ID, clientSecret: PAYPAL_CLIENT_SECRET, env: 'sandbox' })
   : null;
 
-const store = createStore({ paypal });
+const stores = { demo: createStore() };
+if (paypal) stores.sandbox = createStore({ paypal });
 const ai = createTriageEngine({ apiKey: ANTHROPIC_API_KEY, model: ANTHROPIC_MODEL || undefined });
-const app = createApp({ store, ai, policy: STORE_POLICY_TEXT || STORE_POLICY });
+const app = createApp({ stores, ai, policy: STORE_POLICY_TEXT || STORE_POLICY });
 
 app.listen(PORT, () => {
   console.log(`Dispute Copilot on http://localhost:${PORT}`);
-  console.log(`  data: ${store.mode === 'demo' ? 'demo disputes (no PayPal credentials set)' : 'PayPal sandbox'}`);
+  console.log(`  data: ${stores.sandbox ? 'PayPal sandbox + sample disputes' : 'sample disputes only (no PayPal credentials set)'}`);
   console.log(`  AI:   ${ai.engine === 'claude' ? `Claude (${ai.model})` : 'built-in heuristic (no ANTHROPIC_API_KEY set)'}`);
 });

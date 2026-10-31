@@ -23,7 +23,7 @@ const STATUS_LABELS = {
   OTHER: 'Other',
 };
 
-const state = { cases: [], selectedId: null, status: null, grid: null };
+const state = { cases: [], selectedId: null, status: null, grid: null, source: null };
 
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
@@ -32,7 +32,9 @@ const money = (n, cur = 'USD') =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(n);
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
+  const url = new URL(path, location.origin);
+  if (state.source) url.searchParams.set('source', state.source);
+  const res = await fetch(url, {
     ...opts,
     headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -151,9 +153,12 @@ async function loadLog() {
 }
 
 function renderBrief(s) {
+  $('#loadSample').hidden = !(state.source === 'sandbox' && !s.open);
   if (!s.open) {
-    $('#headline').textContent = 'No open disputes. Nice.';
-    $('#subline').textContent = 'New PayPal disputes show up here as soon as buyers file them.';
+    $('#headline').textContent = state.source === 'sandbox' ? 'Your PayPal sandbox has no open disputes.' : 'No open disputes. Nice.';
+    $('#subline').textContent = state.source === 'sandbox'
+      ? 'New disputes appear here as soon as a buyer files one. To try the copilot now, load the sample shop.'
+      : 'New PayPal disputes show up here as soon as buyers file them.';
     $('#triageAll').disabled = true;
     return;
   }
@@ -249,7 +254,7 @@ function verdictHtml(c) {
       <select id="dAction">${Object.entries(ACTION_LABELS).map(([k, v]) => `<option value="${k}" ${k === t.recommendedAction ? 'selected' : ''}>${v}</option>`).join('')}</select>
       <div id="draftBody"></div>
     </div>
-    <p class="source">Drafted by ${t.source === 'claude' ? `Claude (${esc(t.model)})` : 'the built-in rules engine'}. Nothing is sent until you approve it.</p>
+    <p class="source">Drafted by ${t.source === 'claude' ? `Claude (${esc(t.model)})` : 'the built-in rules engine'}. Nothing is sent until you approve it.${state.source === 'demo' ? ' In the sample shop, approving simulates the PayPal call.' : ''}</p>
   `;
 }
 
@@ -337,20 +342,59 @@ async function boot() {
     guard(e.target, async () => {
       e.target.textContent = 'Reviewing…';
       const r = await api('/api/triage-all', { method: 'POST' });
-      toast(r.failed ? `Reviewed ${r.triaged}, ${r.failed} failed. Try those again.` : `Reviewed ${r.triaged} disputes.`, Boolean(r.failed));
+      toast(r.failed ? `Reviewed ${r.triaged}, ${r.failed} failed: ${r.error || 'unknown error'}` : `Reviewed ${r.triaged} disputes.`, Boolean(r.failed));
       await load();
     }),
   );
   try {
     state.status = await api('/api/status');
-    const data = state.status.mode === 'demo' ? 'Demo shop data' : 'PayPal sandbox';
-    const ai = state.status.ai === 'claude' ? `Claude ${state.status.model}` : 'rules engine (add an Anthropic key for Claude)';
-    $('#env').textContent = `${data}, reviewed by ${ai}`;
+    state.source = savedSource() ?? state.status.defaultSource;
+    if (!state.status.sources.includes(state.source)) state.source = state.status.defaultSource;
+    renderSources();
     await load();
   } catch (err) {
     $('#headline').textContent = 'Could not load disputes.';
     $('#subline').textContent = err.message;
   }
 }
+
+function savedSource() {
+  try { return localStorage.getItem('source'); } catch { return null; }
+}
+
+function renderSources() {
+  const ai = state.status.ai === 'claude' ? `Claude ${state.status.model}` : 'built-in rules (add an Anthropic key for Claude)';
+  $('#env').textContent = `Reviewed by ${ai}`;
+  const tabs = $('#sources');
+  tabs.hidden = state.status.sources.length < 2;
+  tabs.querySelectorAll('button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.source === state.source));
+  });
+  $('#resetSample').hidden = state.source !== 'demo';
+}
+
+async function switchSource(source) {
+  state.source = source;
+  state.selectedId = null;
+  try { localStorage.setItem('source', source); } catch { /* storage unavailable */ }
+  $('#slip').innerHTML = '<div class="slip-empty"><p>Pick a dispute from the list to see what happened and what to do next.</p></div>';
+  renderSources();
+  await load();
+}
+
+$('#sources').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-source]');
+  if (b && b.dataset.source !== state.source) switchSource(b.dataset.source).catch((err) => toast(err.message, true));
+});
+$('#loadSample').addEventListener('click', () => switchSource('demo').catch((err) => toast(err.message, true)));
+$('#resetSample').addEventListener('click', (e) =>
+  guard(e.target, async () => {
+    await api('/api/demo/reset', { method: 'POST' });
+    state.selectedId = null;
+    $('#slip').innerHTML = '<div class="slip-empty"><p>Pick a dispute from the list to see what happened and what to do next.</p></div>';
+    toast('Sample shop reset.');
+    await load();
+  }),
+);
 
 boot();

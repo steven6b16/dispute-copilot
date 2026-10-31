@@ -220,3 +220,10 @@ button.link { border: 0; padding: 0; text-decoration: underline; font-weight: 40
 .case summary { cursor: pointer; font-weight: 700; font-size: 15px; }
 .case[open] summary { margin-bottom: 8px; }
 .verdict { margin-top: 18px; }
+
+.bar-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: flex-end; }
+.sources { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 6px; overflow: hidden; }
+.sources button { border: 0; border-radius: 0; padding: 6px 12px; font-size: 14px; }
+.sources button[aria-pressed='true'] { background: var(--ink); color: var(--sheet); }
+.sources[hidden], [hidden] { display: none !important; }
+.brief-actions { align-items: center; }
