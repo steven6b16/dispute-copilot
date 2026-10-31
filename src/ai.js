@@ -2,20 +2,18 @@
 // structured recommendation with ready-to-send drafts. Nothing is ever sent
 // to PayPal without a human clicking "Approve".
 
-import Anthropic from '@anthropic-ai/sdk';
-
 export const ACTIONS = ['CONTEST_WITH_EVIDENCE', 'OFFER_PARTIAL_REFUND', 'ACCEPT_CLAIM', 'REQUEST_INFO'];
 
 const TRIAGE_TOOL = {
   name: 'submit_triage',
   description: 'Submit the triage decision and drafts for one PayPal dispute.',
-  input_schema: {
+  parameters: {
     type: 'object',
     properties: {
       riskLevel: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH'], description: 'Risk of losing money if handled badly.' },
       winLikelihood: { type: 'integer', minimum: 0, maximum: 100, description: 'Estimated chance PayPal rules for the seller if contested.' },
       recommendedAction: { type: 'string', enum: ACTIONS },
-      offerAmount: { type: ['number', 'null'], description: 'Refund to offer, only for OFFER_PARTIAL_REFUND.' },
+      offerAmount: { type: 'number', description: 'Refund to offer, only for OFFER_PARTIAL_REFUND. Use 0 otherwise.' },
       rationale: { type: 'string', description: '2-4 sentences a busy shop owner can read in 10 seconds.' },
       fraudSignals: { type: 'array', items: { type: 'string' } },
       evidenceChecklist: {
@@ -27,8 +25,8 @@ const TRIAGE_TOOL = {
         },
       },
       evidenceType: { type: 'string', enum: ['PROOF_OF_FULFILLMENT', 'PROOF_OF_REFUND', 'OTHER'] },
-      trackingNumber: { type: ['string', 'null'] },
-      carrier: { type: ['string', 'null'] },
+      trackingNumber: { type: 'string', description: 'Only if present in the merchant records, else empty.' },
+      carrier: { type: 'string', description: 'Only if present in the merchant records, else empty.' },
       evidenceNote: { type: 'string', description: 'Statement to PayPal. Factual, only uses facts provided.' },
       buyerMessage: { type: 'string', description: 'Polite, short message to the buyer.' },
     },
@@ -46,7 +44,7 @@ Rules:
 - Never invent facts, tracking numbers, dates or documents. If evidence is missing, list it in evidenceChecklist with have=false and lower winLikelihood.
 - If the shop is clearly at fault, recommend ACCEPT_CLAIM or a refund and say so plainly.
 - Drafts must be ready to send: no placeholders like [NAME].
-Always answer by calling submit_triage.`;
+Always answer by calling submit_triage. If you cannot call tools, reply with only the JSON object for submit_triage.`;
 
 export function buildPrompt(c, policy) {
   return [
@@ -70,9 +68,16 @@ export function buildPrompt(c, policy) {
   ].join('\n');
 }
 
-export function createTriageEngine({ apiKey, model = 'claude-sonnet-5-5', client, maxCallsPerHour = 60, now = Date.now } = {}) {
-  const anthropic = client ?? (apiKey ? new Anthropic({ apiKey }) : null);
-  const engine = anthropic ? 'claude' : 'heuristic';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+export function createTriageEngine({
+  apiKey,
+  model = 'openrouter/free',
+  maxCallsPerHour = 60,
+  fetchImpl = fetch,
+  now = Date.now,
+} = {}) {
+  const engine = apiKey ? 'openrouter' : 'heuristic';
   const calls = []; // timestamps of model calls in the last hour
 
   // The demo is public, so cap model calls to protect the API budget.
@@ -84,23 +89,62 @@ export function createTriageEngine({ apiKey, model = 'claude-sonnet-5-5', client
     return true;
   }
 
-  async function triage(c, policy) {
-    if (!anthropic) return heuristicTriage(c);
-    if (!underBudget()) return { ...heuristicTriage(c), budgetFallback: true };
-    const res = await anthropic.messages.create({
-      model,
-      max_tokens: 1500,
-      system: SYSTEM,
-      tools: [TRIAGE_TOOL],
-      tool_choice: { type: 'tool', name: TRIAGE_TOOL.name },
-      messages: [{ role: 'user', content: buildPrompt(c, policy) }],
+  async function callModel(c, policy) {
+    const res = await fetchImpl(OPENROUTER_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'X-Title': 'Dispute Copilot',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1500,
+        temperature: 0.2,
+        messages: [
+          { role: 'system', content: SYSTEM },
+          { role: 'user', content: buildPrompt(c, policy) },
+        ],
+        tools: [{ type: 'function', function: TRIAGE_TOOL }],
+        tool_choice: { type: 'function', function: { name: TRIAGE_TOOL.name } },
+      }),
     });
-    const block = res.content.find((b) => b.type === 'tool_use');
-    if (!block) throw new Error('Model did not return a triage');
-    return sanitize({ ...block.input, source: 'claude', model }, c);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error?.message || `OpenRouter request failed (${res.status})`);
+    const msg = data.choices?.[0]?.message ?? {};
+    const args = msg.tool_calls?.[0]?.function?.arguments ?? extractJson(msg.content);
+    const input = typeof args === 'string' ? JSON.parse(args) : args;
+    if (!input || typeof input !== 'object') throw new Error('Model did not return a triage');
+    return { input, usedModel: data.model || model };
   }
 
-  return { engine, model: anthropic ? model : null, triage };
+  async function triage(c, policy) {
+    if (!apiKey) return heuristicTriage(c);
+    if (!underBudget()) return { ...heuristicTriage(c), fallbackReason: 'the hourly AI limit for this public demo was reached' };
+    try {
+      const { input, usedModel } = await callModel(c, policy);
+      return sanitize({ ...input, source: 'ai', model: usedModel }, c);
+    } catch (err) {
+      // Free models are rate limited and sometimes return bad output: keep the app usable.
+      console.error('AI triage failed, using rules:', err.message);
+      return { ...heuristicTriage(c), fallbackReason: `the AI model was unavailable (${err.message})` };
+    }
+  }
+
+  return { engine, model: apiKey ? model : null, triage };
+}
+
+// Some models answer in plain text instead of calling the tool; take the JSON object out.
+export function extractJson(text) {
+  if (typeof text !== 'string') return null;
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end <= start) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
 }
 
 // Keeps model output inside safe bounds before it reaches the UI or PayPal.
@@ -114,8 +158,15 @@ export function sanitize(t, c) {
   } else {
     out.offerAmount = null;
   }
-  out.fraudSignals = Array.isArray(out.fraudSignals) ? out.fraudSignals : [];
-  out.evidenceChecklist = Array.isArray(out.evidenceChecklist) ? out.evidenceChecklist : [];
+  if (!['LOW', 'MEDIUM', 'HIGH'].includes(out.riskLevel)) out.riskLevel = 'MEDIUM';
+  if (!['PROOF_OF_FULFILLMENT', 'PROOF_OF_REFUND', 'OTHER'].includes(out.evidenceType)) out.evidenceType = 'OTHER';
+  for (const k of ['rationale', 'evidenceNote', 'buyerMessage']) out[k] = typeof out[k] === 'string' ? out[k] : '';
+  out.trackingNumber = out.trackingNumber ? String(out.trackingNumber) : null;
+  out.carrier = out.carrier ? String(out.carrier) : null;
+  out.fraudSignals = Array.isArray(out.fraudSignals) ? out.fraudSignals.map(String) : [];
+  out.evidenceChecklist = Array.isArray(out.evidenceChecklist)
+    ? out.evidenceChecklist.filter((i) => i && i.item).map((i) => ({ item: String(i.item), have: Boolean(i.have) }))
+    : [];
   return out;
 }
 

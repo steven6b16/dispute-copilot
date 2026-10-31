@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { heuristicTriage, sanitize, createTriageEngine, buildPrompt } from '../src/ai.js';
+import { heuristicTriage, sanitize, createTriageEngine, buildPrompt, extractJson } from '../src/ai.js';
 import { normalizeDispute } from '../src/normalize.js';
 import { demoDisputes, demoMerchantFacts } from '../src/fixtures.js';
 
@@ -68,52 +68,66 @@ describe('sanitize', () => {
   });
 });
 
-describe('Claude engine', () => {
+const triageArgs = {
+  riskLevel: 'MEDIUM',
+  winLikelihood: 62,
+  recommendedAction: 'OFFER_PARTIAL_REFUND',
+  offerAmount: 20,
+  rationale: 'r',
+  evidenceChecklist: [{ item: 'Listing copy', have: true }],
+  evidenceType: 'OTHER',
+  evidenceNote: 'n',
+  buyerMessage: 'm',
+};
+
+function openRouterReply(message, status = 200, model = 'some/free-model') {
+  return vi.fn(async () => new Response(JSON.stringify(status === 200 ? { model, choices: [{ message }] } : { error: { message: 'Rate limit exceeded' } }), { status }));
+}
+
+describe('OpenRouter engine', () => {
   it('forces the triage tool and returns sanitized output', async () => {
-    const create = vi.fn().mockResolvedValue({
-      content: [
-        {
-          type: 'tool_use',
-          name: 'submit_triage',
-          input: {
-            riskLevel: 'MEDIUM',
-            winLikelihood: 62,
-            recommendedAction: 'OFFER_PARTIAL_REFUND',
-            offerAmount: 20,
-            rationale: 'r',
-            evidenceChecklist: [],
-            evidenceType: 'OTHER',
-            evidenceNote: 'n',
-            buyerMessage: 'm',
-          },
-        },
-      ],
-    });
-    const engine = createTriageEngine({ client: { messages: { create } }, model: 'test-model' });
+    const fetchImpl = openRouterReply({ tool_calls: [{ function: { name: 'submit_triage', arguments: JSON.stringify(triageArgs) } }] });
+    const engine = createTriageEngine({ apiKey: 'k', fetchImpl });
     const t = await engine.triage(cases['PP-D-48297C'], 'policy');
-    expect(engine.engine).toBe('claude');
-    expect(create.mock.calls[0][0].tool_choice).toEqual({ type: 'tool', name: 'submit_triage' });
-    expect(create.mock.calls[0][0].messages[0].content).toContain('Supplier batch');
-    expect(t).toMatchObject({ source: 'claude', offerAmount: 20, winLikelihood: 62 });
+    const [url, opts] = fetchImpl.mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(url).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(opts.headers.Authorization).toBe('Bearer k');
+    expect(body.model).toBe('openrouter/free');
+    expect(body.tool_choice).toEqual({ type: 'function', function: { name: 'submit_triage' } });
+    expect(body.messages[1].content).toContain('Supplier batch');
+    expect(t).toMatchObject({ source: 'ai', model: 'some/free-model', offerAmount: 20, winLikelihood: 62 });
+  });
+
+  it('accepts a plain JSON answer when the model skips the tool', async () => {
+    const fetchImpl = openRouterReply({ content: `Here you go:\n${JSON.stringify(triageArgs)}` });
+    const t = await createTriageEngine({ apiKey: 'k', fetchImpl }).triage(cases['PP-D-48297C']);
+    expect(t.source).toBe('ai');
+    expect(t.recommendedAction).toBe('OFFER_PARTIAL_REFUND');
+  });
+
+  it('falls back to rules when the model is rate limited', async () => {
+    const t = await createTriageEngine({ apiKey: 'k', fetchImpl: openRouterReply(null, 429) }).triage(cases['PP-D-48211A']);
+    expect(t.source).toBe('heuristic');
+    expect(t.fallbackReason).toMatch(/Rate limit/);
   });
 
   it('falls back to rules once the hourly budget is used', async () => {
-    const create = vi.fn().mockResolvedValue({
-      content: [{ type: 'tool_use', input: { riskLevel: 'LOW', winLikelihood: 50, recommendedAction: 'REQUEST_INFO', rationale: 'r', evidenceChecklist: [], evidenceType: 'OTHER', evidenceNote: 'n', buyerMessage: 'm' } }],
-    });
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { tool_calls: [{ function: { arguments: JSON.stringify(triageArgs) } }] } }] })));
     let t = 0;
-    const engine = createTriageEngine({ client: { messages: { create } }, maxCallsPerHour: 2, now: () => t });
+    const engine = createTriageEngine({ apiKey: 'k', fetchImpl, maxCallsPerHour: 2, now: () => t });
     const c = cases['PP-D-48211A'];
     await engine.triage(c);
     await engine.triage(c);
     const third = await engine.triage(c);
-    expect(create).toHaveBeenCalledTimes(2);
-    expect(third).toMatchObject({ source: 'heuristic', budgetFallback: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(third.source).toBe('heuristic');
+    expect(third.fallbackReason).toMatch(/hourly/);
     t += 3_600_001;
-    expect((await engine.triage(c)).source).toBe('claude');
+    expect((await engine.triage(c)).source).toBe('ai');
   });
 
-  it('falls back to heuristics without a key', () => {
+  it('uses rules without a key', () => {
     expect(createTriageEngine({}).engine).toBe('heuristic');
   });
 
@@ -121,5 +135,20 @@ describe('Claude engine', () => {
     const p = buildPrompt(cases['PP-D-48211A'], 'POLICY TEXT');
     expect(p).toContain('9400 1118');
     expect(p).toContain('POLICY TEXT');
+  });
+
+  it('extracts JSON from text and ignores junk', () => {
+    expect(extractJson('x {"a":1} y')).toEqual({ a: 1 });
+    expect(extractJson('no json')).toBeNull();
+  });
+});
+
+describe('sanitize hardening', () => {
+  it('repairs missing or invalid fields from weaker models', () => {
+    const t = sanitize({ recommendedAction: 'CONTEST_WITH_EVIDENCE', riskLevel: 'extreme', evidenceChecklist: [{ item: 'x' }, null] }, cases['PP-D-48211A']);
+    expect(t.riskLevel).toBe('MEDIUM');
+    expect(t.evidenceType).toBe('OTHER');
+    expect(t.buyerMessage).toBe('');
+    expect(t.evidenceChecklist).toEqual([{ item: 'x', have: false }]);
   });
 });

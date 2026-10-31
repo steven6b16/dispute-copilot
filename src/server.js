@@ -9,8 +9,8 @@ const {
   PAYPAL_CLIENT_ID,
   PAYPAL_CLIENT_SECRET,
   PAYPAL_ENV = 'sandbox',
-  ANTHROPIC_API_KEY,
-  ANTHROPIC_MODEL,
+  OPENROUTER_API_KEY,
+  OPENROUTER_MODEL,
   STORE_POLICY_TEXT,
   PORT = 3000,
 } = process.env;
@@ -27,8 +27,8 @@ const paypal = PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET
 const stores = { demo: createStore() };
 if (paypal) stores.sandbox = createStore({ paypal });
 const ai = createTriageEngine({
-  apiKey: ANTHROPIC_API_KEY,
-  model: ANTHROPIC_MODEL || undefined,
+  apiKey: OPENROUTER_API_KEY,
+  model: OPENROUTER_MODEL || undefined,
   maxCallsPerHour: Number(process.env.AI_MAX_CALLS_PER_HOUR) || 60,
 });
 const app = createApp({ stores, ai, policy: STORE_POLICY_TEXT || STORE_POLICY });
@@ -36,5 +36,5 @@ const app = createApp({ stores, ai, policy: STORE_POLICY_TEXT || STORE_POLICY })
 app.listen(PORT, () => {
   console.log(`Dispute Copilot on http://localhost:${PORT}`);
   console.log(`  data: ${stores.sandbox ? 'PayPal sandbox + sample disputes' : 'sample disputes only (no PayPal credentials set)'}`);
-  console.log(`  AI:   ${ai.engine === 'claude' ? `Claude (${ai.model})` : 'built-in heuristic (no ANTHROPIC_API_KEY set)'}`);
+  console.log(`  AI:   ${ai.engine === 'openrouter' ? `OpenRouter (${ai.model})` : 'built-in rules (no OPENROUTER_API_KEY set)'}`);
 });

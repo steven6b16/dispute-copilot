@@ -12,7 +12,7 @@ For a one-person shop, a PayPal dispute is a small legal case with a deadline. T
 
 1. **Pulls disputes from PayPal** (Disputes API, sandbox) with their transactions, items and message threads.
 2. **Combines them with the shop's own records**: shipping and tracking, listing details, customer history, and the store policy.
-3. **Reviews each dispute with Claude**, which returns a structured decision through forced tool use:
+3. **Reviews each dispute with an LLM through OpenRouter**, which returns a structured decision through forced tool calling:
    - the recommended response (contest with evidence, offer a partial refund, refund in full, or ask the buyer for details)
    - estimated odds of winning and the risk level
    - an evidence checklist showing what the shop has and what is missing
@@ -33,7 +33,7 @@ The model is told never to invent facts. If tracking is missing, it says so, low
 | `POST …/make-offer` | Partial refund offers |
 | `POST …/accept-claim` | Full refund when the shop is at fault |
 | `POST …/send-message` | Messages to the buyer |
-| Claude (Anthropic Messages API) | Per-dispute triage with a forced `submit_triage` tool and a strict JSON schema (`src/ai.js`) |
+| LLM via OpenRouter (any tool-calling model, default `openrouter/free`) | Per-dispute triage with a forced `submit_triage` tool and a strict JSON schema (`src/ai.js`). Output is repaired and validated; if the model is rate limited or returns bad output, the built-in rules engine takes over so the app never breaks. |
 | AG Grid Community | Dispute queue with deadline sorting and AI columns |
 
 ## Run it
@@ -50,12 +50,13 @@ npm start
 
 Open http://localhost:3000.
 
-With no keys, it runs immediately with seven realistic demo disputes for a fictional coffee-gear shop and a built-in rules engine, so you can try every screen.
+With no keys, it runs immediately with seven realistic sample disputes for a fictional coffee-gear shop and a built-in rules engine, so you can try every screen. With PayPal keys set, a switch in the header moves between your sandbox and the sample shop.
 
 To use the real integrations, fill in `.env`:
 
 - `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` from a **sandbox** app at developer.paypal.com. The server refuses to start against live PayPal.
-- `ANTHROPIC_API_KEY` from console.anthropic.com to have Claude review disputes.
+- `OPENROUTER_API_KEY` from openrouter.ai/keys to have an LLM review disputes. Set `OPENROUTER_MODEL` to any tool-calling model; the default `openrouter/free` picks a free one.
+- `AI_MAX_CALLS_PER_HOUR` (default 60) caps model calls so a public demo cannot run up a bill.
 
 ### Creating sandbox disputes to test with
 
@@ -70,13 +71,13 @@ To use the real integrations, fill in `.env`:
 npm test
 ```
 
-30 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, output sanitising, every rules-engine branch) and the API flows (validation, state changes, audit log).
+34 tests cover the PayPal client (token caching, multipart evidence, error handling), the triage engine (prompt contents, tool forcing, JSON fallback, rate-limit fallback, hourly budget, output repair, every rules-engine branch) and the API flows (validation, state changes, audit log, sample reset).
 
 ## Project layout
 
 ```
 src/paypal.js     PayPal Disputes API client
-src/ai.js         Claude triage engine and the rules-engine fallback
+src/ai.js         OpenRouter triage engine and the rules-engine fallback
 src/normalize.js  PayPal dispute -> case shape
 src/store.js      Sandbox or demo data, merchant records, triage cache, audit log
 src/app.js        Express API and validation
@@ -86,8 +87,8 @@ test/             Vitest suites
 
 ## Tools used
 
-- **Claude** (Anthropic) powers the dispute review inside the app.
-- **Claude** was also used as the development assistant to write this project's code, tests and documentation.
+- **OpenRouter** (LLM gateway) powers the dispute review inside the app.
+- **Claude** (Anthropic) was used as the development assistant to write this project's code, tests and documentation.
 - PayPal Developer sandbox, AG Grid Community, Express, Vitest.
 
 ## License
