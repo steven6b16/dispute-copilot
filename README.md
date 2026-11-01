@@ -38,6 +38,17 @@ The model is told never to invent facts. If tracking is missing, it says so, low
 | LLM via OpenRouter (any tool-calling model, default `openrouter/free`) | Per-dispute triage with a forced `submit_triage` tool and a strict JSON schema (`src/ai.js`). Output is repaired and validated; if the model is rate limited or returns bad output, the built-in rules engine takes over so the app never breaks. |
 | AG Grid Community | Dispute queue with deadline sorting and AI columns |
 
+## Sponsor tools
+
+- **AG Grid Community** renders the dispute queue (`public/app.js`). Rows are sorted by a custom comparator that puts open disputes first by deadline and closed ones last. Custom cell renderers colour the deadline and win odds by risk, show the copilot's call, and flag unreviewed cases. When "Review all" runs, each finished review is pushed in with `applyTransaction` so the row updates in place without reloading the grid. The theme is built with `themeQuartz.withParams` to match the app in light and dark mode.
+- **Render** hosts the live demo from `render.yaml` (a Blueprint): Node web service, health check on `/api/status`, sandbox-only PayPal settings, secrets kept in Render, and a generated `DEMO_ADMIN_TOKEN`. On Render the app switches to public demo mode automatically (see below).
+
+## Deploy your own on Render
+
+1. Fork this repo, then in Render choose **New > Blueprint** and pick the fork. Render reads `render.yaml`.
+2. Fill in `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` (sandbox app) and `OPENROUTER_API_KEY` when prompted.
+3. Apply. The service starts in public demo mode; open it once with `?admin=<DEMO_ADMIN_TOKEN>` (shown in the service's Environment tab) to unlock sending on your sandbox.
+
 ## Run it
 
 Requires Node.js 20 or newer.
@@ -106,7 +117,7 @@ test/             Vitest suites
 
 - **OpenRouter** (LLM gateway) powers the dispute review inside the app.
 - **Claude** (Anthropic) was used as the development assistant to write this project's code, tests and documentation.
-- PayPal Developer sandbox, AG Grid Community, Express, Vitest.
+- PayPal Developer sandbox, AG Grid Community, Render, Express, Vitest.
 
 ## License
 
