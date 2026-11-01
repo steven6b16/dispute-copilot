@@ -1,15 +1,27 @@
 # Render's free plan sleeps after 15 minutes without traffic, and the first visit
-# then takes about 50 seconds. Ping the demo so judges never land on a cold start.
+# then shows a wake-up page for about 50 seconds. GitHub delays scheduled runs by
+# hours under load, so each run keeps pinging for most of the 6-hour job limit and
+# runs overlap through the concurrency queue. Free and unlimited on public repos.
 name: Keep demo awake
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '7 * * * *'
   workflow_dispatch:
+
+concurrency:
+  group: keep-awake
+  cancel-in-progress: false
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 355
     steps:
-      - name: Ping the live demo
-        run: curl -fsS --max-time 90 https://dispute-copilot-49lb.onrender.com/api/status > /dev/null
+      - name: Ping the live demo every 5 minutes
+        run: |
+          end=$((SECONDS + 350 * 60))
+          while [ $SECONDS -lt $end ]; do
+            curl -s -o /dev/null -w "%{http_code} %{time_total}s\n" --max-time 90 https://dispute-copilot-49lb.onrender.com/api/status || true
+            sleep 300
+          done
